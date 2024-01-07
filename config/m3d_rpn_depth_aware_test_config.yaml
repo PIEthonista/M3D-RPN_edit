@@ -182,6 +182,7 @@
  'weak_seg_lambda': 0.0, 
  'iou_3d_lambda': 0, 
  'hill_climbing': True, 
- 'pretrained': None, 
  'bins': 32, 
- 'visdom_port': 8100}
+ 'visdom_port': 8100,
+ 'pretrained': None
+ }
