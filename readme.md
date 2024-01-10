@@ -45,8 +45,16 @@ If you utilize this framework, please cite our ICCV 2019 paper.
     Next, build the KITTI devkit eval for each split.
 
 	```
-	sh data/kitti_split1/devkit/cpp/build.sh
-	sh data/kitti_split2/devkit/cpp/build.sh
+	sh data/kitti_split1/devkit/cpp/build.sh   <-- ignore this (use below)
+	sh data/kitti_split2/devkit/cpp/build.sh   <-- ignore this (use below)
+
+    cd data/kitti_split1/devkit/cpp/build
+    cmake ..
+    make
+
+    cd data/kitti_split2/devkit/cpp/build
+    cmake ..
+    make
 	```
     
     Lastly, build the nms modules

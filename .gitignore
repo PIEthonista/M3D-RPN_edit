@@ -3,6 +3,8 @@
 /boost
 /output
 /models
+
+/data/kitti
 /data/kitti_split1/training
 /data/kitti_split1/validation
 /data/kitti_split2/training
@@ -10,7 +12,6 @@
 
 /data/kitti_split1/devkit/cpp/build
 /data/kitti_split2/devkit/cpp/build
-
 
 *.out
 *.DS_Store
