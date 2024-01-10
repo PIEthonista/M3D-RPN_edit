@@ -1411,7 +1411,9 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
 
 
     # evaluate
-    script = os.path.join(test_path, dataset_test, 'devkit', 'cpp', 'evaluate_object')
+    # script = os.path.join(test_path, dataset_test, 'devkit', 'cpp', 'evaluate_object')
+    script = os.path.join(test_path, dataset_test, 'devkit', 'cpp', 'build', 'evaluate_object')
+    
     with open(os.devnull, 'w') as devnull:
         out = subprocess.check_output([script, results_path.replace('/data', '')], stderr=devnull)
 
