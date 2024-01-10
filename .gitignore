@@ -1,5 +1,8 @@
 /weights
 /slurm_txts
 /boost
+/outputs
+/models
+/data
 
 *.DS_Store
