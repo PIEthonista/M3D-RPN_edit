@@ -17,6 +17,7 @@ from lib.nms.gpu_nms import gpu_nms
 import torch.nn.functional as F
 
 from copy import deepcopy
+from tqdm import tqdm
 
 
 def generate_anchors(conf, imdb, cache_folder):
@@ -1343,6 +1344,8 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
         p2_inv = np.linalg.inv(p2)
 
         # forward test batch
+        # this function call uses data specific stats: mean & std of ground truth bbox on the dataset split
+        # TODO: run stats check to obtain values as in conf?
         aboxes = im_detect_3d(im, net, rpn_conf, preprocess, p2)
 
         base_path, name, ext = file_parts(impath)
@@ -1350,7 +1353,7 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
         file = open(os.path.join(results_path, name + '.txt'), 'w')
         text_to_write = ''
         
-        for boxind in range(0, min(rpn_conf.nms_topN_post, aboxes.shape[0])):
+        for boxind in range(0, min(rpn_conf.nms_topN_post, aboxes.shape[0])):    # conf.nms_topN_post = 40
 
             box = aboxes[boxind, :]
             score = box[4]
@@ -1358,9 +1361,9 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
 
             if score >= 0.75:
 
-                x1 = box[0]
+                x1 = box[0]   # top left
                 y1 = box[1]
-                x2 = box[2]
+                x2 = box[2]   # bottom right
                 y2 = box[3]
                 width = (x2 - x1 + 1)
                 height = (y2 - y1 + 1)
@@ -1372,21 +1375,40 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
                 w3d = box[9]
                 h3d = box[10]
                 l3d = box[11]
-                ry3d = box[12]
+                ry3d = box[12]   # azimuth: 
+                
+                # RY3D:  represents the rotation angle around the vertical (Y) axis. In the context of 3D object detection, 
+                #        this angle is often used to describe the azimuth or heading of an object. The azimuth angle specifies 
+                #        how much the object is rotated about the vertical axis in the 3D world.
+                
+                # Alpha: represents the observation angle or the rotation angle in the image plane. It is the angle between 
+                #        the projection of the object's front vector onto the image plane and the horizontal axis of the image.
+                #        In other words, alpha describes how much the object is rotated in the 2D image.
 
                 # convert alpha into ry3d
                 coord3d = np.linalg.inv(p2).dot(np.array([x3d * z3d, y3d * z3d, 1 * z3d, 1]))
+                
+                
+                # TODO: remove this whole part for RY3D optimization & alpha calculation? (alpha comes from RY3D)
+                # =========================================
+                # use of while loops in this funcion call, TODO: remove?
                 ry3d = convertAlpha2Rot(ry3d, coord3d[2], coord3d[0])
+                #                       alpha, z3d,       x3d
 
                 step_r = 0.3*math.pi
                 r_lim = 0.01
                 box_2d = np.array([x1, y1, width, height])
 
+                # Post 3D -> 2D algorithm
+                # this function call uses while loops intentionally
+                # TODO: remove?
                 z3d, ry3d, verts_best = hill_climb(p2, p2_inv, box_2d, x3d, y3d, z3d, w3d, h3d, l3d, ry3d, step_r_init=step_r, r_lim=r_lim)
 
                 # predict a more accurate projection
                 coord3d = np.linalg.inv(p2).dot(np.array([x3d * z3d, y3d * z3d, 1 * z3d, 1]))
                 alpha = convertRot2Alpha(ry3d, coord3d[2], coord3d[0])
+                # =========================================
+                
 
                 x3d = coord3d[0]
                 y3d = coord3d[1]
@@ -1394,6 +1416,27 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
 
                 y3d += h3d/2
                 
+                # results format (according to KITTI 3D dataset devkit/readme.txt)
+                #
+                # Values    Name      Description
+                # ----------------------------------------------------------------------------
+                # 1    type         Describes the type of object: 'Car', 'Van', 'Truck',
+                #                     'Pedestrian', 'Person_sitting', 'Cyclist', 'Tram',
+                #                     'Misc' or 'DontCare'
+                # 1    truncated    Float from 0 (non-truncated) to 1 (truncated), where          <-- (-1) not applicable
+                #                     truncated refers to the object leaving image boundaries
+                # 1    occluded     Integer (0,1,2,3) indicating occlusion state:                 <-- (-1) not applicable
+                #                     0 = fully visible, 1 = partly occluded
+                #                     2 = largely occluded, 3 = unknown
+                # 1    alpha        Observation angle of object, ranging [-pi..pi]
+                # 4    bbox         2D bounding box of object in the image (0-based index):
+                #                     contains left, top, right, bottom pixel coordinates
+                # 3    dimensions   3D object dimensions: height, width, length (in meters)
+                # 3    location     3D object location x,y,z in camera coordinates (in meters)
+                # 1    rotation_y   Rotation ry around Y-axis in camera coordinates [-pi..pi]
+                # 1    score        Only for results: Float, indicating confidence in
+                #                     detection, needed for p/r curves, higher is better.
+                                
                 text_to_write += ('{} -1 -1 {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} '
                            + '{:.6f} {:.6f}\n').format(cls, alpha, x1, y1, x2, y2, h3d, w3d, l3d, x3d, y3d, z3d, ry3d, score)
                            
@@ -1450,6 +1493,161 @@ def test_kitti_3d(dataset_test, net, rpn_conf, results_path, test_path, use_log=
 
             if use_log: logging.info(print_str)
             else: print(print_str)
+
+
+
+
+
+
+
+
+
+
+
+
+def test_kitti_3d_custom(dataset_test_img_path, dataset_test_calib_path, net, rpn_conf, results_path, use_log=True, output_results_hill_climbed=True):
+    """
+    Test the KITTI framework for object detection in 3D
+    """
+
+    # import read_kitti_cal
+    from lib.imdb_util import read_kitti_cal, read_kitti_cal_custom
+
+    imlist = list_files(dataset_test_img_path, '*.png')
+
+    preprocess = Preprocess([rpn_conf.test_scale], rpn_conf.image_means, rpn_conf.image_stds)
+
+    # fix paths slightly
+    _, test_iter, _ = file_parts(results_path.replace('/data', ''))
+    test_iter = test_iter.replace('results_', '')
+
+    # init
+    test_start = time()
+
+    for imind, impath in tqdm(enumerate(imlist)):
+
+        im = cv2.imread(impath)
+
+        base_path, name, ext = file_parts(impath)
+
+        # read in calib
+        # p2 = read_kitti_cal(os.path.join(test_path, dataset_test_calib_path, 'validation', 'calib', name + '.txt'))
+        p2 = read_kitti_cal_custom(os.path.join(dataset_test_calib_path, name + '.txt'))
+        
+        p2_inv = np.linalg.inv(p2)
+
+        # forward test batch
+        # this function call uses data specific stats: mean & std of ground truth bbox on the dataset split
+        # TODO: run stats check to obtain values as in conf?
+        aboxes = im_detect_3d(im, net, rpn_conf, preprocess, p2)
+
+        base_path, name, ext = file_parts(impath)
+
+        if output_results_hill_climbed:
+            file = open(os.path.join(results_path + "_Outputs_Hill_Climbed", name + '__Hill_Climbed.txt'), 'w')
+        else:
+            file = open(os.path.join(results_path, name + '.txt'), 'w')
+            
+        text_to_write = ''
+        
+        for boxind in range(0, min(rpn_conf.nms_topN_post, aboxes.shape[0])):    # conf.nms_topN_post = 40
+
+            box = aboxes[boxind, :]
+            score = box[4]
+            cls = rpn_conf.lbls[int(box[5] - 1)]
+
+            if score >= 0.75:
+
+                x1 = box[0]   # top left
+                y1 = box[1]
+                x2 = box[2]   # bottom right
+                y2 = box[3]
+                width = (x2 - x1 + 1)
+                height = (y2 - y1 + 1)
+
+                # plot 3D box
+                x3d = box[6]
+                y3d = box[7]
+                z3d = box[8]
+                w3d = box[9]
+                h3d = box[10]
+                l3d = box[11]
+                ry3d = box[12]   # azimuth: 
+                
+                # RY3D:  represents the rotation angle around the vertical (Y) axis. In the context of 3D object detection, 
+                #        this angle is often used to describe the azimuth or heading of an object. The azimuth angle specifies 
+                #        how much the object is rotated about the vertical axis in the 3D world.
+                
+                # Alpha: represents the observation angle or the rotation angle in the image plane. It is the angle between 
+                #        the projection of the object's front vector onto the image plane and the horizontal axis of the image.
+                #        In other words, alpha describes how much the object is rotated in the 2D image.
+
+                # convert alpha into ry3d
+                coord3d = np.linalg.inv(p2).dot(np.array([x3d * z3d, y3d * z3d, 1 * z3d, 1]))
+                
+                if output_results_hill_climbed:
+                    # TODO: remove this whole part for RY3D optimization & alpha calculation? (alpha comes from RY3D)
+                    # =========================================
+                    # use of while loops in this funcion call, TODO: remove?
+                    ry3d = convertAlpha2Rot(ry3d, coord3d[2], coord3d[0])
+                    #                       alpha, z3d,       x3d
+
+                    step_r = 0.3*math.pi
+                    r_lim = 0.01
+                    box_2d = np.array([x1, y1, width, height])
+
+                    # Post 3D -> 2D algorithm
+                    # this function call uses while loops intentionally
+                    # TODO: remove?
+                    z3d, ry3d, verts_best = hill_climb(p2, p2_inv, box_2d, x3d, y3d, z3d, w3d, h3d, l3d, ry3d, step_r_init=step_r, r_lim=r_lim)
+
+                    # predict a more accurate projection
+                    coord3d = np.linalg.inv(p2).dot(np.array([x3d * z3d, y3d * z3d, 1 * z3d, 1]))
+                    alpha = convertRot2Alpha(ry3d, coord3d[2], coord3d[0])
+                    # =========================================
+                    
+
+                x3d = coord3d[0]
+                y3d = coord3d[1]
+                z3d = coord3d[2]
+
+                y3d += h3d/2
+                    
+                    # results format (according to KITTI 3D dataset devkit/readme.txt)
+                    #
+                    # Values    Name      Description
+                    # ----------------------------------------------------------------------------
+                    # 1    type         Describes the type of object: 'Car', 'Van', 'Truck',
+                    #                     'Pedestrian', 'Person_sitting', 'Cyclist', 'Tram',
+                    #                     'Misc' or 'DontCare'
+                    # 1    truncated    Float from 0 (non-truncated) to 1 (truncated), where          <-- (-1) not applicable
+                    #                     truncated refers to the object leaving image boundaries
+                    # 1    occluded     Integer (0,1,2,3) indicating occlusion state:                 <-- (-1) not applicable
+                    #                     0 = fully visible, 1 = partly occluded
+                    #                     2 = largely occluded, 3 = unknown
+                    # 1    alpha        Observation angle of object, ranging [-pi..pi]
+                    # 4    bbox         2D bounding box of object in the image (0-based index):
+                    #                     contains left, top, right, bottom pixel coordinates
+                    # 3    dimensions   3D object dimensions: height, width, length (in meters)
+                    # 3    location     3D object location x,y,z in camera coordinates (in meters)
+                    # 1    rotation_y   Rotation ry around Y-axis in camera coordinates [-pi..pi]
+                    # 1    score        Only for results: Float, indicating confidence in
+                    #                     detection, needed for p/r curves, higher is better.
+                
+                if output_results_hill_climbed:
+                    text_to_write += ('{} -1 -1 {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} '
+                            + '{:.6f} {:.6f}\n').format(cls, alpha, x1, y1, x2, y2, h3d, w3d, l3d, x3d, y3d, z3d, ry3d, score)
+                else:
+                    text_to_write += ('{} -1 -1 {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f} '
+                            + '{:.6f} {:.6f}\n').format(cls, ry3d, x1, y1, x2, y2, h3d, w3d, l3d, x3d, y3d, z3d, ry3d, score)
+                           
+        file.write(text_to_write)
+        file.close()
+    print("test_kitti_3d_custom: DONE")
+
+
+
+
 
 
 def parse_kitti_result(respath):

@@ -47,6 +47,8 @@ class LocalConv2d(nn.Module):
 class RPN(nn.Module):
 
     def __init__(self, phase, base, conf):
+    #                         ^ densenet121 pretrained
+        
         super(RPN, self).__init__()
 
         self.base = base
@@ -54,6 +56,7 @@ class RPN(nn.Module):
         del self.base.transition3.pool
 
         # dilate
+        # the 16 internal layers of the 4th / last denseblock of densenet-121
         dilate_layer(self.base.denseblock4.denselayer1.conv2, 2)
         dilate_layer(self.base.denseblock4.denselayer2.conv2, 2)
         dilate_layer(self.base.denseblock4.denselayer3.conv2, 2)
@@ -73,8 +76,8 @@ class RPN(nn.Module):
 
         # settings
         self.phase = phase
-        self.num_classes = len(conf['lbls']) + 1
-        self.num_anchors = conf['anchors'].shape[0]
+        self.num_classes = len(conf['lbls']) + 1       # 3 + 1
+        self.num_anchors = conf['anchors'].shape[0]    # 36
 
         self.num_rows = int(min(conf.bins, calc_output_size(conf.test_scale, conf.feat_stride)))
 
@@ -275,8 +278,8 @@ def build(conf, phase='train'):
 
     densenet121 = models.densenet121(pretrained=train)
 
-    num_cls = len(conf['lbls']) + 1
-    num_anchors = conf['anchors'].shape[0]
+    num_cls = len(conf['lbls']) + 1         # 3 + 1
+    num_anchors = conf['anchors'].shape[0]   # 36
 
     # make network
     rpn_net = RPN(phase, densenet121.features, conf)
@@ -286,10 +289,11 @@ def build(conf, phase='train'):
 
     if 'pretrained' in conf and conf.pretrained is not None:
 
-        src_weights = torch.load(conf.pretrained)
+        src_weights = torch.load(conf.pretrained)    # None?
         src_keylist = list(src_weights.keys())
 
-        conv_layers = ['cls', 'bbox_x', 'bbox_y', 'bbox_w', 'bbox_h', 'bbox_x3d', 'bbox_y3d', 'bbox_w3d', 'bbox_h3d', 'bbox_l3d', 'bbox_z3d', 'bbox_rY3d']
+        conv_layers = ['cls', 'bbox_x', 'bbox_y', 'bbox_w', 'bbox_h', 'bbox_x3d', 'bbox_y3d', 'bbox_w3d', 'bbox_h3d', 'bbox_l3d', 'bbox_z3d', 'bbox_rY3d']  # 12
+        #                                                                                                                                      ^ azimuth
 
         # prop_feats
         src_weight_key = 'module.{}.0.weight'.format('prop_feats')

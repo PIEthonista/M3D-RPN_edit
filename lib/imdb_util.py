@@ -336,6 +336,49 @@ def read_kitti_cal(calfile):
     return p2
 
 
+
+
+def read_kitti_cal_custom(calfile):
+    """
+    Reads the kitti calibration projection matrix (p2) file from disc.
+
+    Args:
+        calfile (str): path to single calibration file
+    """
+    with open(calfile, 'r') as file:
+        lines = file.readlines()
+
+    cam_calib_numbers_12 = []
+
+    for line in lines:
+        numbers = [float(num) for num in line.strip().split(" ")]
+        cam_calib_numbers_12.extend(numbers)
+
+    # bbGt annotation in text format of:
+    # cls x y w h occ x y w h ign ang
+    p2 = np.zeros([4, 4], dtype=float)
+    p2[0, 0] = float(cam_calib_numbers_12[0])
+    p2[0, 1] = float(cam_calib_numbers_12[1])
+    p2[0, 2] = float(cam_calib_numbers_12[2])
+    p2[0, 3] = float(cam_calib_numbers_12[3])
+    p2[1, 0] = float(cam_calib_numbers_12[4])
+    p2[1, 1] = float(cam_calib_numbers_12[5])
+    p2[1, 2] = float(cam_calib_numbers_12[6])
+    p2[1, 3] = float(cam_calib_numbers_12[7])
+    p2[2, 0] = float(cam_calib_numbers_12[8])
+    p2[2, 1] = float(cam_calib_numbers_12[9])
+    p2[2, 2] = float(cam_calib_numbers_12[10])
+    p2[2, 3] = float(cam_calib_numbers_12[11])
+    p2[3, 3] = 1
+    print(p2)
+
+    return p2
+
+
+
+
+
+
 def read_kitti_poses(posefile):
 
     text_file = open(posefile, 'r')

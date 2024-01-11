@@ -21,6 +21,10 @@ from lib.imdb_util import *
 conf_path = 'config/m3d_rpn_depth_aware_test_config.pkl'
 weights_path = 'weights/M3D-RPN-Release/m3d_rpn_depth_aware_test'
 
+# =============
+dataset_test_img_path = ''
+dataset_test_calib_path = ''
+
 # load config
 conf = edict(pickle_read(conf_path))
 conf.pretrained = None
@@ -57,4 +61,5 @@ print(pretty_print('conf', conf))
 # test kitti
 # -----------------------------------------
 
-test_kitti_3d(conf.dataset_test, net, conf, results_path, data_path, use_log=False)
+# test_kitti_3d(conf.dataset_test, net, conf, results_path, data_path, use_log=False)
+test_kitti_3d_custom(dataset_test_img_path, dataset_test_calib_path, net, conf, results_path, use_log=False, output_results_hill_climbed=True)

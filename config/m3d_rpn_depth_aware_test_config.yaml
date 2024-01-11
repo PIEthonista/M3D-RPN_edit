@@ -161,6 +161,10 @@
        [-2.80500000e+02, -1.84500000e+02,  2.95500000e+02,
          1.99500000e+02,  5.60786618e+00,  1.58417254e+00,
          1.53543134e+00,  3.81887324e+00, -2.10674110e-01]]), 
+  # bbox_means & bbox_stds has 11 numbers in the following order:
+  # 2d_x, 2d_y, 2d_w, 2d_h
+  # 3d_x, 3d_y, 3d_z, 3d_w, 3d_h, 3d_l, 3d_azimuth
+  # bbox data are normalized accordingly to the specific dataset stats
  'bbox_means': array([[-0.00113694,  0.00205018,  0.067497  , -0.0907372 ,  0.00541239,
                        -0.06926353,  0.30813908,  0.06805384, -0.02440728,  0.09393358,
                         0.00625098]]), 
