@@ -9,6 +9,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=gohyixian456@gmail.com
 
+# 559096
 # python3
 # import torch
 # torch.__version__              --> '1.10.1+cu102'
