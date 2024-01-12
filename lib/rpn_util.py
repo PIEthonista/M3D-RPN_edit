@@ -1513,13 +1513,20 @@ def test_kitti_3d_custom(dataset_test_img_path, dataset_test_calib_path, net, rp
     # import read_kitti_cal
     from lib.imdb_util import read_kitti_cal, read_kitti_cal_custom
 
-    imlist = list_files(dataset_test_img_path, '*.png')
+    # imlist = list_files(dataset_test_img_path, '*.png')
+    imlist = sorted([os.path.join(dataset_test_img_path, img) for img in os.listdir(dataset_test_img_path)])
+    caliblist = sorted([os.path.join(dataset_test_calib_path, calib) for calib in os.listdir(dataset_test_calib_path)])
 
     preprocess = Preprocess([rpn_conf.test_scale], rpn_conf.image_means, rpn_conf.image_stds)
 
     # fix paths slightly
     _, test_iter, _ = file_parts(results_path.replace('/data', ''))
     test_iter = test_iter.replace('results_', '')
+    
+    if output_results_hill_climbed:
+        mkdir_if_missing(results_path + "_Outputs_Hill_Climbed", delete_if_exist=True)
+    else:
+        mkdir_if_missing(results_path, delete_if_exist=True)
 
     # init
     test_start = time()
@@ -1532,7 +1539,7 @@ def test_kitti_3d_custom(dataset_test_img_path, dataset_test_calib_path, net, rp
 
         # read in calib
         # p2 = read_kitti_cal(os.path.join(test_path, dataset_test_calib_path, 'validation', 'calib', name + '.txt'))
-        p2 = read_kitti_cal_custom(os.path.join(dataset_test_calib_path, name + '.txt'))
+        p2 = read_kitti_cal_custom(caliblist[imind])
         
         p2_inv = np.linalg.inv(p2)
 
