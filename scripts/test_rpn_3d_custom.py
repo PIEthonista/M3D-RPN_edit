@@ -23,10 +23,11 @@ weights_path = 'weights/M3D-RPN-Release/m3d_rpn_depth_aware_test'
 
 # =============
 dataset_test_img_path = '/work/u5832291/view_neti_RT/data/DistentangledCarlaScenes/images/minicooper_day_both'
-dataset_test_calib_path = '/work/u5832291/view_neti_RT/data/DistentangledCarlaScenes/pose_matrices_RT_only'
-output_results_hill_climbed = False
+dataset_test_calib_path = '/work/u5832291/view_neti_RT/data/DistentangledCarlaScenes/pose_matrices_KRT'
+# dataset_test_calib_path = '/work/u5832291/view_neti_RT/data/DistentangledCarlaScenes/pose_matrices_RT_only'
+output_results_hill_climbed = True
 
-results_path = 'output/DistentangledCarlaScenes/minicooper_day_both/data'
+results_path = 'output/DistentangledCarlaScenes/minicooper_day_both/data_KRT_Hill_Climbed'
 
 # load config
 conf = edict(pickle_read(conf_path))
